@@ -1,0 +1,36 @@
+#!/bin/bash
+
+# Retrieve the active project ID
+export PROJECT_ID=$(gcloud config get-value project)
+
+# Create the open-policy-agent service account
+echo "Creating the open-policy-agent service account ..."
+gcloud iam service-accounts create open-policy-agent
+
+# Format the open-policy-agent service account email
+export SERVICE_ACCOUNT="open-policy-agent@${PROJECT_ID}.iam.gserviceaccount.com"
+
+# Create a GCS bucket to hold the OPA policy bundle
+echo "Creating the GCS bucket to hold the OPA policy bundle..."
+export BUCKET_NAME="opa-policies-${PROJECT_ID}"
+gsutil mb gs://${BUCKET_NAME}
+echo "Created GCS bucket ${BUCKET_NAME}"
+
+# Copy the OPA policy bundle to the GCS bucket
+echo "Copying the OPA policy bundle (bundle.tar.gz) to gs://${BUCKET_NAME}..."
+gsutil cp bundle.tar.gz gs://${BUCKET_NAME}/
+
+# Grant read permission to the OPA policy bundle to the open-policy-agent service account
+echo "Granting read permission on to the open-policy-agent service account"
+gsutil iam ch "serviceAccount:${SERVICE_ACCOUNT}:roles/storage.objectViewer" gs://${BUCKET_NAME}
+
+cat <<EOF > .env
+export PROJECT_ID=$(gcloud config get-value project)
+export BUCKET_NAME="opa-policies-${PROJECT_ID}"
+export SERVICE_ACCOUNT="open-policy-agent@${PROJECT_ID}.iam.gserviceaccount.com"
+EOF
+
+echo "Tutorial bootstrapping complete."
+echo "Service account email and bucket name written to .env"
+echo "Service Account: ${SERVICE_ACCOUNT}"
+echo "Bucket Name: ${BUCKET_NAME}"
